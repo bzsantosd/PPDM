@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "698048817417",
+    "project_id": "cadastro-alunos-4232b",
+    "storage_bucket": "cadastro-alunos-4232b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:698048817417:android:6ab5fc2494195339570bd8",
+        "android_client_info": {
+          "package_name": "com.example.cadastro_alunos"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBTPFoEy8I3TIXIHcgcSS7A8Li7yA0vYIU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
