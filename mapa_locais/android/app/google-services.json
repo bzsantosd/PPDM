@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "464383028098",
+    "project_id": "mapalocais-152db",
+    "storage_bucket": "mapalocais-152db.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:464383028098:android:3bd2da666e367477a53d9b",
+        "android_client_info": {
+          "package_name": "com.example.mapa_locais"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBv8_oa4SFFZLgQXKYzgf76eo-Ega4O95E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
