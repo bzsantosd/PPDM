@@ -4,6 +4,7 @@ import '../services/local_service.dart';
 
 class DetalhesScreen extends StatefulWidget {
   final Local local;
+
   const DetalhesScreen({super.key, required this.local});
 
   @override
@@ -11,13 +12,19 @@ class DetalhesScreen extends StatefulWidget {
 }
 
 class _DetalhesScreenState extends State<DetalhesScreen> {
-  final LocalService _service = LocalService();
-  late bool _isFavorito;
+  late bool _favorito;
 
   @override
   void initState() {
     super.initState();
-    _isFavorito = widget.local.favorito;
+    _favorito = widget.local.favorito;
+  }
+
+  Future<void> _toggleFavorito() async {
+    setState(() {
+      _favorito = !_favorito;
+    });
+    await LocalService().alterarFavorito(widget.local.id, _favorito);
   }
 
   @override
@@ -27,22 +34,10 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
         title: Text(widget.local.nome),
         actions: [
           IconButton(
-            icon: Icon(
-              _isFavorito ? Icons.favorite : Icons.favorite_border,
-              color: Colors.red,
-            ),
-            onPressed: () async {
-              setState(() {
-                _isFavorito = !_isFavorito;
-              });
-              await _service.alterarFavorito(widget.local.id, _isFavorito);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(_isFavorito ? 'Adicionado aos favoritos' : 'Removido dos favoritos')),
-                );
-              }
-            },
-          )
+            icon: Icon(_favorito ? Icons.favorite : Icons.favorite_border),
+            color: _favorito ? Colors.red : null,
+            onPressed: _toggleFavorito,
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -53,34 +48,60 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
             Container(
               height: 200,
               width: double.infinity,
-              color: Colors.grey[300],
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: const Icon(Icons.store, size: 80, color: Colors.grey),
             ),
             const SizedBox(height: 16),
-            Text(widget.local.nome, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            Text('${widget.local.categoria} • ${widget.local.cidade}', style: TextStyle(color: Colors.grey[600], fontSize: 16)),
-            const Divider(height: 30),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                Column(children: [const Icon(Icons.star, color: Colors.amber), Text('${widget.local.avaliacao}')]),
-                Column(children: [const Icon(Icons.directions_walk, color: Colors.blue), Text('${widget.local.distancia} km')]),
-                Column(children: [const Icon(Icons.access_time, color: Colors.green), Text(widget.local.horario)]),
-              ],
+            Text(
+              widget.local.nome,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-            const Divider(height: 30),
-            const Text('Descrição', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Chip(label: Text(widget.local.categoria)),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.location_city),
+              title: const Text('Cidade'),
+              subtitle: Text(widget.local.cidade),
+            ),
+            ListTile(
+              leading: const Icon(Icons.star, color: Colors.amber),
+              title: const Text('Avaliação'),
+              subtitle: Text('${widget.local.avaliacao} / 5.0'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.navigation),
+              title: const Text('Distância'),
+              subtitle: Text('${widget.local.distancia} km de você'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.access_time),
+              title: const Text('Horário de funcionamento'),
+              subtitle: Text(widget.local.horario),
+            ),
             const SizedBox(height: 8),
-            Text(widget.local.descricao, style: const TextStyle(fontSize: 15)),
-            const SizedBox(height: 30),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.map),
-                label: const Text('Ver no mapa'),
+            const Text(
+              'Descrição',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              widget.local.descricao.isEmpty ? 'Sem descrição cadastrada.' : widget.local.descricao,
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(45),
               ),
-            )
+              icon: const Icon(Icons.map),
+              label: const Text('Ver no mapa'),
+              onPressed: () {
+                Navigator.popUntil(context, (route) => route.isFirst);
+              },
+            ),
           ],
         ),
       ),

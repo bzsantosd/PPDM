@@ -1,57 +1,116 @@
 import 'package:flutter/material.dart';
 import '../models/local.dart';
 import '../services/local_service.dart';
-import '../dialogs/confirm_delete.dart';
-import '../widgets/local_form.dart';
+import '../widgets/local_form_bottom_sheet.dart';
 import 'detalhes_screen.dart';
 
 class ResultadosScreen extends StatefulWidget {
-  final String cidadeInicial;
-  final String pesquisaInicial;
+  final String cidade;
+  final String pesquisa;
 
-  const ResultadosScreen({super.key, required this.cidadeInicial, required this.pesquisaInicial});
+  const ResultadosScreen({
+    super.key,
+    required this.cidade,
+    required this.pesquisa,
+  });
 
   @override
   State<ResultadosScreen> createState() => _ResultadosScreenState();
 }
 
 class _ResultadosScreenState extends State<ResultadosScreen> {
-  final LocalService _service = LocalService();
-  late TextEditingController _searchCtrl;
   late String _cidadeFiltro;
-  String _categoriaFiltro = 'Todos';
+  late String _categoriaFiltro;
+  late TextEditingController _pesquisaController;
+  bool _somenteFavoritos = false;
 
   final List<String> _cidades = ['Todas', 'São Paulo', 'Campinas', 'Jundiaí'];
-  final List<String> _categorias = ['Todos', 'Academia', 'Restaurante', 'Parque', 'Café', 'Outros'];
+  final List<String> _categorias = ['Todos', 'Academia', 'Restaurante', 'Café', 'Parque', 'Farmácia', 'Outros'];
 
   @override
   void initState() {
     super.initState();
-    _searchCtrl = TextEditingController(text: widget.pesquisaInicial);
-    _cidadeFiltro = widget.cidadeInicial;
+    _cidadeFiltro = widget.cidade;
+    _categoriaFiltro = 'Todos';
+    _pesquisaController = TextEditingController(text: widget.pesquisa);
   }
 
-  void _abrirFormulario({Local? local}) {
+  List<Local> _filtrarLocais(List<Local> locais) {
+    return locais.where((local) {
+      final correspondeCidade = _cidadeFiltro == 'Todas' || local.cidade == _cidadeFiltro;
+      final correspondeCategoria = _categoriaFiltro == 'Todos' || local.categoria == _categoriaFiltro;
+      final termo = _pesquisaController.text.toLowerCase();
+      final correspondeTexto = local.nome.toLowerCase().contains(termo) ||
+          local.categoria.toLowerCase().contains(termo);
+      final correspondeFavorito = !_somenteFavoritos || local.favorito;
+
+      return correspondeCidade && correspondeCategoria && correspondeTexto && correspondeFavorito;
+    }).toList();
+  }
+
+  void _abrirFormulario([Local? local]) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => LocalFormModal(
-        localParaEditar: local,
-        onSalvar: (l) async {
-          if (local == null) {
-            await _service.adicionar(l);
-          } else {
-            await _service.atualizar(l);
-          }
-        },
+      builder: (_) => LocalFormBottomSheet(
+        local: local,
+        cidadePadrao: _cidadeFiltro != 'Todas' ? _cidadeFiltro : 'São Paulo',
       ),
     );
+  }
+
+  Future<void> _confirmarExclusao(Local local) async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Excluir local?'),
+          content: Text('Deseja excluir "${local.nome}"? Essa ação não pode ser desfeita.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Excluir'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmou == true) {
+      try {
+        await LocalService().excluir(local.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Local excluído com sucesso!')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erro ao excluir: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Resultados')),
+      appBar: AppBar(
+        title: const Text('Resultados'),
+        actions: [
+          IconButton(
+            icon: Icon(_somenteFavoritos ? Icons.favorite : Icons.favorite_border),
+            color: _somenteFavoritos ? Colors.red : null,
+            onPressed: () => setState(() => _somenteFavoritos = !_somenteFavoritos),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _abrirFormulario(),
         child: const Icon(Icons.add),
@@ -61,85 +120,93 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: TextField(
-              controller: _searchCtrl,
+              controller: _pesquisaController,
               decoration: const InputDecoration(
+                labelText: 'Pesquisar',
                 prefixIcon: Icon(Icons.search),
-                hintText: 'Pesquisar local...',
                 border: OutlineInputBorder(),
               ),
               onChanged: (_) => setState(() {}),
             ),
           ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Row(
               children: [
-                const SizedBox(width: 8),
-                DropdownButton<String>(
-                  value: _cidadeFiltro,
-                  items: _cidades.map((c) => DropdownMenuItem(value: c, child: Text('Cidade: $c'))).toList(),
-                  onChanged: (v) => setState(() => _cidadeFiltro = v!),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _cidadeFiltro,
+                    decoration: const InputDecoration(labelText: 'Cidade'),
+                    items: _cidades.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                    onChanged: (val) => setState(() => _cidadeFiltro = val!),
+                  ),
                 ),
-                const SizedBox(width: 15),
-                DropdownButton<String>(
-                  value: _categoriaFiltro,
-                  items: _categorias.map((c) => DropdownMenuItem(value: c, child: Text('Categoria: $c'))).toList(),
-                  onChanged: (v) => setState(() => _categoriaFiltro = v!),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _categoriaFiltro,
+                    decoration: const InputDecoration(labelText: 'Categoria'),
+                    items: _categorias.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
+                    onChanged: (val) => setState(() => _categoriaFiltro = val!),
+                  ),
                 ),
               ],
             ),
           ),
+          const SizedBox(height: 8),
           Expanded(
             child: StreamBuilder<List<Local>>(
-              stream: _service.listarLocais(),
+              stream: LocalService().listarLocais(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('Nenhum local cadastrado.'));
+                if (snapshot.hasError) {
+                  return const Center(child: Text('Erro ao carregar locais do Firestore.'));
                 }
 
-                final locaisFiltrados = snapshot.data!.where((loc) {
-                  final matchesCidade = _cidadeFiltro == 'Todas' || loc.cidade == _cidadeFiltro;
-                  final matchesCat = _categoriaFiltro == 'Todos' || loc.categoria == _categoriaFiltro;
-                  final matchesText = loc.nome.toLowerCase().contains(_searchCtrl.text.toLowerCase()) ||
-                      loc.categoria.toLowerCase().contains(_searchCtrl.text.toLowerCase());
-                  return matchesCidade && matchesCat && matchesText;
-                }).toList();
+                final todosLocais = snapshot.data ?? [];
+                final locaisFiltrados = _filtrarLocais(todosLocais);
+
+                if (locaisFiltrados.isEmpty) {
+                  return const Center(child: Text('Nenhum local encontrado.'));
+                }
 
                 return ListView.builder(
                   itemCount: locaisFiltrados.length,
                   itemBuilder: (context, index) {
-                    final item = locaisFiltrados[index];
+                    final local = locaisFiltrados[index];
                     return Card(
                       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       child: ListTile(
-                        title: Text(item.nome),
-                        subtitle: Text('${item.categoria} • ${item.cidade}\n⭐ ${item.avaliacao} | 📍 ${item.distancia}km'),
-                        isThreeLine: true,
+                        title: Text(local.nome, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('${local.categoria} • ${local.cidade}\n${local.distancia} km • Avaliação: ${local.avaliacao}'),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
+                              icon: Icon(
+                                local.favorito ? Icons.favorite : Icons.favorite_border,
+                                color: local.favorito ? Colors.red : null,
+                              ),
+                              onPressed: () => LocalService().alterarFavorito(local.id, !local.favorito),
+                            ),
+                            IconButton(
                               icon: const Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () => _abrirFormulario(local: item),
+                              onPressed: () => _abrirFormulario(local),
                             ),
                             IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () async {
-                                final confirm = await mostrarConfirmacaoExclusao(context);
-                                if (confirm == true) {
-                                  await _service.excluir(item.id);
-                                }
-                              },
+                              onPressed: () => _confirmarExclusao(local),
                             ),
                           ],
                         ),
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => DetalhesScreen(local: item)),
+                            MaterialPageRoute(
+                              builder: (_) => DetalhesScreen(local: local),
+                            ),
                           );
                         },
                       ),
@@ -148,7 +215,7 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
                 );
               },
             ),
-          )
+          ),
         ],
       ),
     );
